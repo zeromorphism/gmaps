@@ -164,6 +164,87 @@ export const WeightedHeatmapLayerView = HeatmapLayerBaseView.extend({
 })
 
 
+export const TaggedRegionLayerView = GMapsLayerView.extend({
+    render() {
+        const coordinates = this.model.get("coordinates");
+        const name = this.model.get("name");
+        const description = this.model.get("description");
+        const tags = this.model.get("tags");
+        const data = this.model.get("data");
+        const wikipediaUrl = this.model.get("wikipedia_url");
+        const fillColor = this.model.get("fill_color");
+        const fillOpacity = this.model.get("fill_opacity");
+        const strokeColor = this.model.get("stroke_color");
+        const strokeOpacity = this.model.get("stroke_opacity");
+        const strokeWeight = this.model.get("stroke_weight");
+
+        // Convert coordinates to Google Maps LatLng objects
+        const paths = coordinates.map(([lat, lng]) =>
+            new google.maps.LatLng(lat, lng)
+        );
+
+        // Create the polygon
+        this.polygon = new google.maps.Polygon({
+            paths: paths,
+            strokeColor: strokeColor,
+            strokeOpacity: strokeOpacity,
+            strokeWeight: strokeWeight,
+            fillColor: fillColor,
+            fillOpacity: fillOpacity
+        });
+
+        // Create info window content
+        let infoContent = `<div style="max-width: 300px;">`;
+        infoContent += `<h3 style="margin: 0 0 10px 0;">${name}</h3>`;
+
+        if (description) {
+            infoContent += `<p style="margin: 5px 0;">${description}</p>`;
+        }
+
+        if (tags && tags.length > 0) {
+            infoContent += `<div style="margin: 10px 0;">`;
+            infoContent += `<strong>Tags:</strong> `;
+            infoContent += tags.map(tag =>
+                `<span style="background: #e0e0e0; padding: 2px 6px; margin: 2px; border-radius: 3px; font-size: 0.9em;">${tag}</span>`
+            ).join(' ');
+            infoContent += `</div>`;
+        }
+
+        if (data && Object.keys(data).length > 0) {
+            infoContent += `<div style="margin: 10px 0;">`;
+            infoContent += `<strong>Data:</strong><br/>`;
+            for (const [key, value] of Object.entries(data)) {
+                infoContent += `<div style="margin: 5px 0 5px 10px;"><em>${key}:</em> ${value}</div>`;
+            }
+            infoContent += `</div>`;
+        }
+
+        if (wikipediaUrl) {
+            infoContent += `<div style="margin: 10px 0;">`;
+            infoContent += `<a href="${wikipediaUrl}" target="_blank" style="color: #0066cc;">View on Wikipedia →</a>`;
+            infoContent += `</div>`;
+        }
+
+        infoContent += `</div>`;
+
+        // Create info window
+        this.infoWindow = new google.maps.InfoWindow({
+            content: infoContent
+        });
+
+        // Add click listener to show info window
+        this.polygon.addListener('click', (event) => {
+            this.infoWindow.setPosition(event.latLng);
+            this.infoWindow.open(this.mapView.map);
+        });
+    },
+
+    addToMapView(mapView) {
+        this.polygon.setMap(mapView.map);
+    }
+})
+
+
 export const PlainmapView = widgets.DOMWidgetView.extend({
     render() {
         this.loadConfiguration();
@@ -246,6 +327,14 @@ export const WeightedHeatmapLayerModel = GMapsLayerModel.extend({
     defaults: _.extend({}, GMapsLayerModel.prototype.defaults, {
         _view_name: "WeightedHeatmapLayerView",
         _model_name: "WeightedHeatmapLayerModel"
+    })
+});
+
+
+export const TaggedRegionLayerModel = GMapsLayerModel.extend({
+    defaults: _.extend({}, GMapsLayerModel.prototype.defaults, {
+        _view_name: "TaggedRegionLayerView",
+        _model_name: "TaggedRegionLayerModel"
     })
 });
 

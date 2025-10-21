@@ -314,6 +314,117 @@ class WeightedHeatmap(widgets.Widget, _HeatmapOptionsMixin):
         self.data_bounds = [(min_latitude, min_longitude), (max_latitude, max_longitude)]
 
 
+class TaggedRegion(widgets.Widget):
+    """
+    Tagged region layer for creating custom regions with metadata.
+
+    Add this to a ``Map`` instance to draw custom regions (polygons) with
+    associated metadata, tags, and links to external sources like Wikipedia.
+
+    :Examples:
+
+    >>> m = gmaps.Map()
+    >>> region = gmaps.TaggedRegion(
+    ...     name="Golden Gate Park",
+    ...     coordinates=[
+    ...         (37.771, -122.511),
+    ...         (37.771, -122.453),
+    ...         (37.766, -122.453),
+    ...         (37.766, -122.511)
+    ...     ],
+    ...     description="Large urban park in San Francisco",
+    ...     tags=["park", "recreation", "landmark"],
+    ...     wikipedia_url="https://en.wikipedia.org/wiki/Golden_Gate_Park",
+    ...     fill_color="green",
+    ...     fill_opacity=0.4
+    ... )
+    >>> m.add_layer(region)
+
+    :param name: Name of the region
+    :type name: str
+
+    :param coordinates: List of (latitude, longitude) pairs defining the polygon
+        boundary. Must have at least 3 points.
+    :type coordinates: list of tuples
+
+    :param description: Description of the region
+    :type description: str, optional
+
+    :param tags: List of tags associated with the region
+    :type tags: list of str, optional
+
+    :param data: Dictionary of custom metadata
+    :type data: dict, optional
+
+    :param wikipedia_url: URL to Wikipedia or similar source
+    :type wikipedia_url: str, optional
+
+    :param fill_color: Color for the polygon fill (CSS color or hex)
+    :type fill_color: str, optional
+
+    :param fill_opacity: Opacity of the fill (0.0 to 1.0)
+    :type fill_opacity: float, optional
+
+    :param stroke_color: Color for the polygon border
+    :type stroke_color: str, optional
+
+    :param stroke_opacity: Opacity of the border (0.0 to 1.0)
+    :type stroke_opacity: float, optional
+
+    :param stroke_weight: Width of the border in pixels
+    :type stroke_weight: int, optional
+    """
+    has_bounds = True
+    _view_name = Unicode("TaggedRegionLayerView").tag(sync=True)
+    _view_module = Unicode("jupyter-gmaps").tag(sync=True)
+    _model_name = Unicode("TaggedRegionLayerModel").tag(sync=True)
+    _model_module = Unicode("jupyter-gmaps").tag(sync=True)
+
+    name = Unicode("").tag(sync=True)
+    coordinates = List(minlen=3).tag(sync=True)
+    description = Unicode("").tag(sync=True)
+    tags = List(trait=Unicode()).tag(sync=True)
+    data = Dict().tag(sync=True)
+    wikipedia_url = Unicode("").tag(sync=True)
+
+    fill_color = Unicode("#0000FF").tag(sync=True)
+    fill_opacity = Float(default_value=0.35, min=0.0, max=1.0).tag(sync=True)
+    stroke_color = Unicode("#0000FF").tag(sync=True)
+    stroke_opacity = Float(default_value=0.8, min=0.0, max=1.0).tag(sync=True)
+    stroke_weight = Int(default_value=2).tag(sync=True)
+
+    data_bounds = List().tag(sync=True)
+
+    @validate("coordinates")
+    def _validate_coordinates(self, proposal):
+        coords = proposal["value"]
+        if len(coords) < 3:
+            raise ValueError("A region requires at least 3 coordinate points")
+        for point in coords:
+            if not geotraitlets.is_valid_point(point):
+                raise InvalidPointException(
+                    "{} is not a valid latitude, longitude pair".format(point))
+        return coords
+
+    @observe("coordinates")
+    def _calc_bounds(self, change):
+        data = change["new"]
+        if len(data) > 0:
+            min_latitude = min(row[0] for row in data)
+            min_longitude = min(row[1] for row in data)
+            max_latitude = max(row[0] for row in data)
+            max_longitude = max(row[1] for row in data)
+            self.data_bounds = [(min_latitude, min_longitude), (max_latitude, max_longitude)]
+
+    @default("tags")
+    def _default_tags(self):
+        return []
+
+    @default("data")
+    def _default_data(self):
+        return {}
+
+
 def plainmap():
     warnings.warn(
         "plainmap is deprecated. Prefer the Map class.",
